@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: aurelius-pos
+    runtime: python
+    buildCommand: "pip install -r backend/requirements.txt"
+    startCommand: "gunicorn --chdir backend app:app --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: SUPABASE_URL
+        fromConfig: true
+      - key: SUPABASE_KEY
+        fromConfig: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
