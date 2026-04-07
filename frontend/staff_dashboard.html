@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Dashboard - Aurelius POS</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Target -->
+        <div id="sidebarTarget"></div>
+
+        <main class="main-content">
+            <header class="navbar">
+                <div class="page-title">Cashier Workspace</div>
+                <div class="user-profile">
+                    <div id="staffGreeting" style="font-weight: 600; margin-right: 1.5rem;">Hello, Cashier</div>
+                    <div class="user-avatar" style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary-color); display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-user-tag"></i>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content-body">
+                <div class="welcome-box mb-4" style="background: linear-gradient(135deg, var(--primary-color), #4338ca); padding: 3rem; border-radius: 24px; text-align: center;">
+                    <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">Ready for the next customer?</h1>
+                    <p style="font-size: 1.1rem; opacity: 0.9; margin-bottom: 2rem;">Quickly process transactions, manage customer details, and track your daily performance.</p>
+                    <a href="pos.html" class="btn btn-primary" style="background: white; color: var(--primary-color); padding: 1rem 2.5rem; font-size: 1.25rem;">
+                        <i class="fas fa-cash-register mr-4"></i> OPEN BILLING TERMINAL
+                    </a>
+                </div>
+
+                <div class="grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <div class="stat-card">
+                        <div class="stat-label">Your Daily Sales</div>
+                        <div class="stat-value">₹<span id="staffTotal">0.00</span></div>
+                        <div class="text-muted small mt-2">Today's contribution to revenue</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Invoices Handled</div>
+                        <div class="stat-value"><span id="staffInvoices">0</span></div>
+                        <div class="text-muted small mt-2">Transactions completed today</div>
+                    </div>
+                </div>
+
+                <div class="stat-card mt-4">
+                    <h3 class="mb-4">Your Recent Transactions</h3>
+                    <div class="table-container">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
+                                    <th style="padding: 1rem; color: var(--text-muted);">Invoice ID</th>
+                                    <th style="padding: 1rem; color: var(--text-muted);">Amount</th>
+                                    <th style="padding: 1rem; color: var(--text-muted);">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="staffTransactions">
+                                <tr><td colspan="3" style="padding: 2rem; text-align: center; color: var(--text-muted);">Loading transactions...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (user) {
+                document.getElementById('staffGreeting').innerText = `Hello, ${user.full_name}`;
+            }
+
+            // Load staff specific summary if needed, otherwise use mock
+            const recent = await api.get('/sales/recent');
+            const tbody = document.getElementById('staffTransactions');
+            tbody.innerHTML = '';
+            
+            if (recent && recent.length > 0) {
+                recent.forEach(t => {
+                    const tr = document.createElement('tr');
+                    tr.style.borderBottom = '1px solid var(--border-color)';
+                    tr.innerHTML = `
+                        <td style="padding: 1rem;">#INV-${t.id}</td>
+                        <td style="padding: 1rem;">₹${t.grand_total}</td>
+                        <td style="padding: 1rem;"><span class="text-accent">Success</span></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                
+                // Demo totals
+                document.getElementById('staffTotal').innerText = recent.reduce((s,t) => s + parseFloat(t.grand_total), 0).toFixed(2);
+                document.getElementById('staffInvoices').innerText = recent.length;
+            } else {
+                tbody.innerHTML = '<tr><td colspan="3" style="padding: 2rem; text-align: center; color: var(--text-muted);">No sales yet today.</td></tr>';
+            }
+        });
+    </script>
+</body>
+</html>

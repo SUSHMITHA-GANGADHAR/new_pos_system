@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POS Billing - Aurelius POS</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar placeholder -->
+        <div id="sidebarTarget"></div>
+
+        <main class="main-content">
+            <header class="navbar">
+                <div class="page-title">POS Billing</div>
+                <div class="user-profile">
+                    <div id="currentDateTime" class="text-muted small mr-4" style="margin-right: 1.5rem;"></div>
+                    <div class="btn btn-outline small" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;">
+                        <i class="fas fa-barcode"></i> Scanner: ON
+                    </div>
+                </div>
+            </header>
+
+            <div class="content-body" style="padding: 1.5rem; display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; max-width: 100%; height: calc(100vh - var(--navbar-height)); overflow: hidden;">
+                
+                <!-- Left: Catalog & Search -->
+                <div class="catalog-section" style="display: flex; flex-direction: column; overflow: hidden; height: 100%;">
+                    <div class="search-bar mb-4">
+                        <div class="input-group" style="position: relative;">
+                            <i class="fas fa-search" style="position: absolute; left: 1rem; top: 1rem; color: var(--text-muted);"></i>
+                            <input type="text" id="productSearch" class="input-control" placeholder="Search product by name or SKU..." style="padding-left: 2.5rem; height: 50px; font-size: 1rem;">
+                        </div>
+                    </div>
+
+                    <div id="categoryTabs" class="categories-tabs mb-4" style="display: flex; gap: 0.75rem; overflow-x: auto; padding-bottom: 0.5rem; white-space: nowrap;">
+                        <button class="btn btn-outline category-tab active" data-category="all">All Items</button>
+                        <button class="btn btn-outline category-tab" data-category="1">Electronics</button>
+                        <button class="btn btn-outline category-tab" data-category="2">Groceries</button>
+                        <button class="btn btn-outline category-tab" data-category="3">Clothing</button>
+                        <button class="btn btn-outline category-tab" data-category="4">Beverages</button>
+                    </div>
+
+                    <div id="productGrid" class="product-grid" style="flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                        <!-- Products will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Right: Cart Summary -->
+                <div class="cart-section " style="background: var(--card-bg); border-radius: 20px; border: 1px solid var(--border-color); display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+                    <div class="cart-header" style="padding: 1.25rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="font-size: 1.125rem; font-weight: 600;">Current Cart</h3>
+                        <button id="clearCart" class="text-danger small" style="background: transparent;">Clear All</button>
+                    </div>
+
+                    <!-- Cart Items -->
+                    <div id="cartItems" style="flex: 1; overflow-y: auto; padding: 1.25rem;">
+                        <!-- Cart item row -->
+                    </div>
+
+                    <!-- Summary & Checkout -->
+                    <div class="cart-footer" style="padding: 1.5rem; background: rgba(15, 23, 42, 0.4); border-top: 1px solid var(--border-color);">
+                        <div class="customer-selector mb-4">
+                            <div class="form-label mb-1">Customer Selection</div>
+                            <div class="flex" style="display: flex; gap: 0.5rem;">
+                                <select id="customerSelect" class="input-control" style="font-size: 0.85rem; height: 40px;">
+                                    <option value="">-- Choose Customer (Optional) --</option>
+                                </select>
+                                <button id="addCustomerBtn" class="btn btn-outline btn-icon" style="padding: 0.5rem; height: 40px;"><i class="fas fa-plus"></i></button>
+                            </div>
+                        </div>
+
+                        <div class="totals-area mb-4">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <span>Subtotal</span>
+                                <span>₹<span id="subTotal">0.00</span></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <span>GST ( <span id="gstRate">18</span>%)</span>
+                                <span>₹<span id="gstAmount">0.00</span></span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed var(--border-color); font-weight: 700; font-size: 1.5rem;">
+                                <span>Total</span>
+                                <span class="text-accent">₹<span id="grandTotal">0.00</span></span>
+                            </div>
+                        </div>
+
+                        <button id="checkoutBtn" class="btn btn-primary w-100" style="width: 100%; height: 60px; font-size: 1.25rem; justify-content: center; border-radius: 12px; margin-top: 0.5rem;">
+                            COMPLETE TRANSACTION
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Invoice Modal -->
+    <div id="invoiceModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 400px; padding: 1.5rem; color: #000; background: #fff !important;">
+            <div id="printableInvoice" style="background: white; padding: 1rem; width: 100%;">
+                <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 0.5rem; margin-bottom: 1rem;">
+                    <h2 id="receiptBusinessName">Aurelius POS</h2>
+                    <p style="font-size: 0.8rem; line-height: 1.4;">
+                        GSTIN: 29AAAAA0000A1Z5<br>
+                        Address: MG Road, Bangalore, KA, India<br>
+                        Phone: +91 9876543210
+                    </p>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 1rem;">
+                    <span>Date: <strong id="receiptDate">01/01/2026</strong></span>
+                    <span>INV#: <strong id="receiptId">#0001</strong></span>
+                </div>
+
+                <table style="width: 100%; font-size: 0.85rem; border-collapse: collapse;">
+                    <thead style="border-bottom: 1px solid #000;">
+                        <tr>
+                            <th style="padding: 0.5rem; text-align: left;">Item</th>
+                            <th style="padding: 0.5rem; text-align: right;">Qty</th>
+                            <th style="padding: 0.5rem; text-align: right;">Price</th>
+                            <th style="padding: 0.5rem; text-align: right;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="receiptItems">
+                        <!-- Items populated here -->
+                    </tbody>
+                </table>
+
+                <div style="margin-top: 1rem; border-top: 1px solid #000; padding-top: 0.5rem; text-align: right;">
+                    <div style="font-size: 0.9rem;">Subtotal: ₹<span id="receiptSubtotal">0.00</span></div>
+                    <div style="font-size: 0.9rem;">GST (18%): ₹<span id="receiptGst">0.00</span></div>
+                    <div style="font-weight: 700; font-size: 1.1rem; margin-top: 0.5rem;">GRAND TOTAL: ₹<span id="receiptGrandTotal">0.00</span></div>
+                </div>
+
+                <div style="text-align: center; margin-top: 2rem; border-top: 1px dashed #666; padding-top: 1rem; font-size: 0.75rem;">
+                    <p>Thank you for shopping with us!</p>
+                    <p>Visit again soon.</p>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button onclick="window.print()" class="btn btn-primary" style="flex: 1; justify-content: center;">Print Receipt</button>
+                <button onclick="closeModal()" class="btn btn-outline" style="flex: 1; justify-content: center;">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toastContainer" style="position: fixed; bottom: 2rem; right: 2rem; z-index: 2000;"></div>
+
+    <script src="js/auth.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/pos.js"></script>
+</body>
+</html>
