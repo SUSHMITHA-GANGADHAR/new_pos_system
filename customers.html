@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customers - Aurelius POS</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebarTarget"></div>
+
+        <main class="main-content">
+            <header class="navbar">
+                <div class="page-title">Customer Relationship (CRM)</div>
+                <div class="user-profile">
+                    <button id="addCustomerBtn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> New Customer Record
+                    </button>
+                </div>
+            </header>
+
+            <div class="content-body">
+                <div class="stat-card mb-4" style="padding: 1.5rem;">
+                    <label class="form-label">Search Customer Database</label>
+                    <input type="text" id="customerSearch" class="input-control" placeholder="Search by name, phone or email...">
+                </div>
+
+                <div class="stat-card">
+                    <div class="table-container" style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
+                                    <th style="padding: 1rem; color: var(--text-muted);">Customer Name</th>
+                                    <th style="padding: 1rem; color: var(--text-muted);">Phone Number</th>
+                                    <th style="padding: 1rem; color: var(--text-muted);">Email</th>
+                                    <th style="padding: 1rem; color: var(--text-muted); text-align: right;">Purchase Count</th>
+                                </tr>
+                            </thead>
+                            <tbody id="customersTable">
+                                <!-- Customers populated here -->
+                                <tr><td colspan="4" style="padding: 2rem; text-align: center; color: var(--text-muted);">Loading customers...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Customer Modal -->
+    <div id="customerModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+            <h2 class="mb-4">Register New Customer</h2>
+            <form id="customerForm">
+                <div class="form-group mb-4">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" id="cName" class="input-control" required>
+                </div>
+                <div class="form-group mb-4">
+                    <label class="form-label">Phone Number</label>
+                    <input type="text" id="cPhone" class="input-control" required>
+                </div>
+                <div class="form-group mb-4">
+                    <label class="form-label">Email (Optional)</label>
+                    <input type="email" id="cEmail" class="input-control">
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1; justify-content: center;">Save Record</button>
+                    <button type="button" class="btn btn-outline" style="flex: 1; justify-content: center;" onclick="closeModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/sidebar.js"></script>
+    <script src="js/customers.js"></script>
+</body>
+</html>
