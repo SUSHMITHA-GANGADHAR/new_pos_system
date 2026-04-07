@@ -23,13 +23,22 @@ def add_header(response):
     return response
 
 from supabase import create_client, Client
-from supabase.lib.client_options import ClientOptions
 
-# Supabase initialization with high timeout for unstable networks
+# Supabase initialization
 url: str = Config.SUPABASE_URL
 key: str = Config.SUPABASE_KEY
-options = ClientOptions(postgrest_client_timeout=60, storage_client_timeout=60)
-supabase: Client = create_client(url, key, options=options)
+supabase: Client = create_client(url, key)
+
+# Robust Timeout settings for slow networks (Version-agnostic)
+try:
+    # Postgrest (Database) timeout
+    if hasattr(supabase, 'postgrest'):
+        supabase.postgrest.timeout = 60
+    # Auth (Identity) timeout
+    if hasattr(supabase, 'auth') and hasattr(supabase.auth, '_client'):
+        supabase.auth._client.timeout = 60
+except Exception as e:
+    print(f"Warning: Could not set custom timeouts: {e}")
 
 # Manually increase Auth timeout (if possible by accessing underlying client)
 try:
@@ -341,3 +350,4 @@ def add_customer():
 
 if __name__ == '__main__':
     app.run(port=5000)
+
