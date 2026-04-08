@@ -1,15 +1,28 @@
+import os
+# GLOBAL TIMEOUT OVERRIDE (Must be before any httpx/supabase imports)
+os.environ["HTTPX_TIMEOUT"] = "60.0"
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from supabase import create_client, Client
+from supabase import create_client
 from config import Config
-import os
 from functools import wraps
 import jwt
 import datetime
+import httpx
+
+# Robust static folder path for deployment
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FRONTEND_DIR = os.path.join(os.path.dirname(BASE_DIR), 'frontend')
 
 app = Flask(__name__, 
-            static_folder=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'frontend'), 
+            static_folder=FRONTEND_DIR, 
             static_url_path='')
+
+# Use WhiteNoise to serve static files reliably in production (e.g., Render)
+from whitenoise import WhiteNoise
+app.wsgi_app = WhiteNoise(app.wsgi_app, root=FRONTEND_DIR)
+
 app.config.from_object(Config)
 CORS(app)
 
@@ -22,30 +35,93 @@ def add_header(response):
     response.headers['Expires'] = '-1'
     return response
 
-from supabase import create_client, Client
+# Global exception handler for any unhandled errors
+from werkzeug.exceptions import HTTPException
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # Log the full error to visibility in console
+    print(f"DEBUG: Uncaught Exception - {str(e)}")
+    
+    # If it's a standard HTTP error (like 404), return it properly
+    if isinstance(e, HTTPException):
+        return jsonify({
+            "status": "error",
+            "message": e.description
+        }), e.code
+    
+    # Check for timeout or connectivity issues
+    error_msg = str(e).lower()
+    if any(keyword in error_msg for keyword in ["timeout", "timed out", "connecttimeout", "httpcore"]):
+        return jsonify({
+            "status": "error", 
+            "type": "timeout",
+            "message": "The connection to the database timed out. Please check your internet or try again."
+        }), 504
+        
+    return jsonify({
+        "status": "error",
+        "message": f"Server Error: {str(e)}"
+    }), 500
 
 # Supabase initialization
 url: str = Config.SUPABASE_URL
 key: str = Config.SUPABASE_KEY
-supabase: Client = create_client(url, key)
 
-# Robust Timeout settings for slow networks (Version-agnostic)
-try:
-    # Postgrest (Database) timeout
-    if hasattr(supabase, 'postgrest'):
-        supabase.postgrest.timeout = 60
-    # Auth (Identity) timeout
-    if hasattr(supabase, 'auth') and hasattr(supabase.auth, '_client'):
-        supabase.auth._client.timeout = 60
-except Exception as e:
-    print(f"Warning: Could not set custom timeouts: {e}")
+# Initialize Supabase client
+supabase = create_client(url, key)
 
-# Manually increase Auth timeout (if possible by accessing underlying client)
-try:
-    if hasattr(supabase.auth, '_client'):
-        supabase.auth._client.timeout = 60
-except:
-    pass
+# --- DIAGNOSTIC PROBE (Check if database is reachable) ---
+import time
+print(f"🔍 Initializing Supabase connection to: {url[:15]}...{url[-3:]}")
+
+max_retries = 3
+retry_delay = 2 # seconds
+connected = False
+
+for attempt in range(1, max_retries + 1):
+    try:
+        # 1. Update timeouts for the probe
+        if hasattr(supabase.postgrest, 'session'):
+            supabase.postgrest.session.timeout = httpx.Timeout(45.0)
+        
+        # 2. Try health check
+        probe = supabase.table('settings').select('id').limit(1).execute()
+        print(f"✅ DATABASE REACHABLE: Connection verified on attempt {attempt}.")
+        connected = True
+        break
+    except Exception as probe_err:
+        error_str = str(probe_err)
+        print(f"⏳ Attempt {attempt} failed: {type(probe_err).__name__}")
+        
+        if attempt < max_retries:
+            print(f"   Retrying in {retry_delay}s...")
+            time.sleep(retry_delay)
+        else:
+            print("❌ ALL CONNECTION ATTEMPTS FAILED.")
+            print(f"   Final Error: {error_str}")
+            if "getaddrinfo failed" in error_str or "11001" in error_str:
+                print("   💡 DNS ERROR: Your system cannot find 'supabase.co'.")
+                print("      Check internet, disable VPN, or try a mobile hotspot.")
+            print("---------------------------------------------------------")
+
+if connected:
+    # Robustly increase all timeouts to 60s for the actual app
+    try:
+        if hasattr(supabase.postgrest, 'session'):
+            supabase.postgrest.session.timeout = httpx.Timeout(60.0)
+        
+        auth_client = None
+        if hasattr(supabase.auth, '_client'): auth_client = supabase.auth._client
+        elif hasattr(supabase.auth, 'http_client'): auth_client = supabase.auth.http_client
+        
+        if auth_client:
+            auth_client.timeout = httpx.Timeout(60.0)
+            
+        print("✅ Full system timeout confirmed at 60s")
+    except Exception as e:
+        print(f"Note: Could not override default timeout settings: {e}")
+
 
 # Helper for Auth
 def token_required(f):
@@ -83,19 +159,39 @@ def serve_html(path):
 @app.route('/api/auth/login', methods=['POST'])
 def login():
     data = request.get_json()
-    email = data.get('email')
-    password = data.get('password')
+    email = data.get('email', '').strip()
+    password = data.get('password', '')
+    
+    print(f"Login attempt for: {email}")
     
     try:
-        res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+        # Step 1: Auth sign-in
+        # Use explicit named arguments to avoid dictionary-related 401 errors
+        res = supabase.auth.sign_in_with_password(credentials={"email": email, "password": password})
         user = res.user
         token = res.session.access_token
         
-        # Determine role from profiles table
-        profile = supabase.table('profiles').select('*').eq('id', user.id).execute()
-        role = profile.data[0]['role'] if profile.data else 'staff'
-        full_name = profile.data[0]['full_name'] if profile.data else email
+        print(f"Auth success for user ID: {user.id}")
         
+        # Step 2: Determine role from profiles table
+        try:
+            profile_res = supabase.table('profiles').select('*').eq('id', user.id).execute()
+            
+            if not profile_res.data:
+                print(f"Warning: No profile record for UID {user.id}")
+                # Fallback to defaults or metadata if profile fetch fails
+                role = user.user_metadata.get('role', 'staff') if user.user_metadata else 'staff'
+                full_name = user.user_metadata.get('full_name', email) if user.user_metadata else email
+            else:
+                role = profile_res.data[0]['role']
+                full_name = profile_res.data[0]['full_name']
+                print(f"Profile found: {full_name} ({role})")
+                
+        except Exception as profile_err:
+            print(f"Profile fetch error: {profile_err}")
+            role = 'staff'
+            full_name = email
+
         return jsonify({
             "status": "success",
             "token": token,
@@ -106,13 +202,19 @@ def login():
                 "full_name": full_name
             }
         })
-    except Exception as e:
-        # Standardize error message for clean UX
-        error_msg = str(e)
-        if "Email not confirmed" in error_msg:
-             return jsonify({"status": "error", "message": "Email not verified. Please contact administrator."}), 401
         
-        return jsonify({"status": "error", "message": "Invalid email or password"}), 401
+    except Exception as e:
+        error_msg = str(e)
+        print(f"Login Error: {error_msg}")
+        
+        # User-friendly error mapping
+        if "Invalid login credentials" in error_msg:
+             return jsonify({"status": "error", "message": "Invalid email or password"}), 401
+        elif "Email not confirmed" in error_msg:
+             return jsonify({"status": "error", "message": "Email not verified. Please check your inbox."}), 401
+        
+        return jsonify({"status": "error", "message": error_msg}), 401
+
 
 @app.route('/api/auth/register', methods=['POST'])
 def register():
@@ -192,7 +294,7 @@ def get_dashboard_summary():
 # --- Products CRUD ---
 @app.route('/api/products', methods=['GET'])
 def get_products():
-    res = supabase.table('products').select("*, categories(name)").execute()
+    res = supabase.table('products').select("*, categories(*)").execute()
     return jsonify(res.data)
 
 @app.route('/api/products', methods=['POST'])
@@ -227,13 +329,34 @@ def create_sale():
     customer_id = data.get('customer_id')
     user_id = data.get('user_id')
     
+    # --- Handle Customer Selection & Stats ---
+    final_customer_id = customer_id
+    if not final_customer_id:
+        try:
+            # Look for "Walking Customer" record
+            walk_res = supabase.table('customers').select('id').eq('name', 'Walking Customer').execute()
+            if walk_res.data:
+                final_customer_id = walk_res.data[0]['id']
+            else:
+                # SELF-HEAL: Create it if it doesn't exist
+                new_walk = supabase.table('customers').insert({
+                    "name": "Walking Customer",
+                    "phone": "0000000000",
+                    "email": "walking@pos.com"
+                }).execute()
+                if new_walk.data:
+                    final_customer_id = new_walk.data[0]['id']
+        except Exception as e:
+            print(f"Walking customer setup error: {e}")
+
     try:
         # 1. Create Sale entry
         res = supabase.table('sales').insert({
             "total_amount": data.get('subtotal', 0),
             "gst_amount": data.get('gst', 0),
             "grand_total": data.get('total', 0),
-            "customer_id": customer_id,
+            "payment_mode": data.get('payment_mode', 'cash'),
+            "customer_id": final_customer_id,
             "user_id": user_id
         }).execute()
         
@@ -243,6 +366,7 @@ def create_sale():
         sale_id = res.data[0]['id']
         
         # 2. Add Sale Items and Update Stock
+        grand_total = data.get('total', 0)
         for item in items:
             p_id = item['product_id']
             qty = int(item['quantity'])
@@ -259,6 +383,11 @@ def create_sale():
             if prod.data:
                 new_stock = max(0, int(prod.data[0]['stock']) - qty)
                 supabase.table('products').update({"stock": new_stock}).eq('id', p_id).execute()
+        
+        # 3. Update Customer Stats (Optional: Local aggregation is used instead)
+        # Note: We skip manual column updates to avoid DB schema errors if columns are missing.
+        # The /api/customers route now calculates these on the fly for accuracy.
+        pass
             
         return jsonify({"status": "success", "sale_id": sale_id})
     except Exception as e:
@@ -279,6 +408,7 @@ def get_recent_sales():
                 "total_amount": s['total_amount'],
                 "gst_amount": s['gst_amount'],
                 "grand_total": s['grand_total'],
+                "payment_mode": s.get('payment_mode', 'cash'),
                 "customer_name": customer_name
             })
         return jsonify(output)
@@ -289,7 +419,7 @@ def get_recent_sales():
 @app.route('/api/purchases', methods=['GET'])
 def get_purchases():
     try:
-        res = supabase.table('purchases').select('*').order('purchase_date', desc=True).execute()
+        res = supabase.table('purchases').select('*, purchase_items(*, products(*))').order('purchase_date', desc=True).execute()
         return jsonify(res.data)
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
@@ -298,16 +428,18 @@ def get_purchases():
 def create_purchase():
     data = request.get_json()
     items = data.get('items', [])
+    status = data.get('status', 'delivered')
     
     try:
         # 1. Create Purchase record
         res = supabase.table('purchases').insert({
             "supplier_name": data.get('supplier_name', 'General Supplier'),
-            "total_cost": data.get('total_cost', 0)
+            "total_cost": data.get('total_cost', 0),
+            "status": status
         }).execute()
         purchase_id = res.data[0]['id']
         
-        # 2. Add Purchase Items and Increase Stock
+        # 2. Add Purchase Items and (Optionally) Increase Stock
         for item in items:
             p_id = item['product_id']
             qty = int(item['quantity'])
@@ -319,11 +451,12 @@ def create_purchase():
                 "unit_cost": item['unit_cost']
             }).execute()
             
-            # Increase Stock
-            prod = supabase.table('products').select('stock').eq('id', p_id).execute()
-            if prod.data:
-                new_stock = int(prod.data[0]['stock']) + qty
-                supabase.table('products').update({"stock": new_stock}).eq('id', p_id).execute()
+            # Increase Stock ONLY if delivered
+            if status == 'delivered':
+                prod = supabase.table('products').select('stock').eq('id', p_id).execute()
+                if prod.data:
+                    new_stock = int(prod.data[0]['stock']) + qty
+                    supabase.table('products').update({"stock": new_stock}).eq('id', p_id).execute()
             
         return jsonify({"status": "success", "purchase_id": purchase_id})
     except Exception as e:
@@ -333,10 +466,58 @@ def create_purchase():
 @app.route('/api/customers', methods=['GET'])
 def get_customers():
     try:
-        # Get customers with purchase count (simplification: just count sales)
-        res = supabase.table('customers').select('*').execute()
-        return jsonify(res.data)
+        # 1. Fetch all customers
+        cust_res = supabase.table('customers').select('*').execute()
+        customers_list = cust_res.data or []
+        
+        # Identify Walking Customer and rename it as requested
+        walking_id = None
+        for c in customers_list:
+            if c['name'].lower() == "walking customer":
+                walking_id = c['id']
+                c['name'] = "Walking Customer (Common)"
+        
+        # 2. Fetch Sales and Sale Items for aggregation
+        sales_res = supabase.table('sales').select('id, customer_id, grand_total').execute()
+        all_sales = sales_res.data or []
+        
+        # Mapping sale_id -> customer_id (with fallback to walking customer for unassigned sales)
+        sale_to_cust = {}
+        for s in all_sales:
+             sale_to_cust[s['id']] = s.get('customer_id') or walking_id
+             
+        # Aggregation object
+        stats = {c['id']: {'purchases': 0, 'items': 0, 'spent': 0.0} for c in customers_list}
+        
+        # Aggregate Sales
+        for s in all_sales:
+            cid = s.get('customer_id') or walking_id
+            if cid and cid in stats:
+                stats[cid]['purchases'] += 1
+                stats[cid]['spent'] += float(s.get('grand_total', 0))
+        
+        # Aggregate Item Counts
+        try:
+            items_res = supabase.table('sale_items').select('sale_id, quantity').execute()
+            for item in (items_res.data or []):
+                sid = item.get('sale_id')
+                cid = sale_to_cust.get(sid)
+                if cid and cid in stats:
+                    stats[cid]['items'] += int(item.get('quantity', 0))
+        except Exception as item_err:
+            print(f"Item counts aggregation skipped: {item_err}")
+
+        # 3. Merge stats into customer objects
+        for cust in customers_list:
+            cid = cust['id']
+            c_vals = stats.get(cid, {'purchases': 0, 'items': 0, 'spent': 0.0})
+            cust['total_purchases'] = c_vals['purchases']
+            cust['total_items'] = c_vals['items']
+            cust['total_spent'] = c_vals['spent']
+            
+        return jsonify(customers_list)
     except Exception as e:
+        print(f"Fetch Customers Error: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/customers', methods=['POST'])

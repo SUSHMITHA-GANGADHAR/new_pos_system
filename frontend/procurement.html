@@ -22,6 +22,19 @@
             </header>
 
             <div class="content-body">
+                <!-- Supplier/Vendor Spotlight Section -->
+                <div class="mb-5" style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--accent-outer); border-radius: 24px; padding: 1.5rem; backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h3 style="margin: 0; display: flex; align-items: center; gap: 0.75rem;">
+                            <i class="fas fa-certificate text-accent"></i> Verified Suppliers
+                        </h3>
+                        <span class="text-muted small">Active Partners</span>
+                    </div>
+                    <div id="vendorSpotlight" class="flex gap-4" style="display: flex; gap: 1.25rem; overflow-x: auto; padding-bottom: 1rem; scrollbar-width: none; -ms-overflow-style: none;">
+                        <!-- Cards will stay here with scroll -->
+                    </div>
+                </div>
+
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="stat-label">Stock Value (Current)</div>
@@ -79,6 +92,14 @@
                     </div>
                 </div>
 
+                <div class="form-group mb-4">
+                    <label class="form-label">Order Status</label>
+                    <select id="purchaseStatus" class="input-control">
+                        <option value="delivered">Delivered (Increases Stock)</option>
+                        <option value="booked">Booked (Wait for Delivery)</option>
+                    </select>
+                </div>
+
                 <div class="flex justify-between items-center mb-4" style="display: flex; justify-content: space-between; font-weight: 700; font-size: 1.25rem;">
                     <span>TOTAL COST:</span>
                     <span class="text-accent">₹<span id="purchaseTotal">0.00</span></span>
@@ -89,6 +110,24 @@
                     <button type="button" class="btn btn-outline" style="flex: 1; justify-content: center;" onclick="closePurchaseModal()">Cancel</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Purchase Details Modal -->
+    <div id="detailsModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px;">
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <h2 class="mb-4">Purchase Details</h2>
+                <button onclick="closeDetailsModal()" style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted);">&times;</button>
+            </div>
+            
+            <div id="detailsContent">
+                <!-- Content populated by JS -->
+            </div>
+            
+            <div style="margin-top: 2rem; text-align: right;">
+                <button type="button" class="btn btn-primary" onclick="closeDetailsModal()">Close</button>
+            </div>
         </div>
     </div>
 

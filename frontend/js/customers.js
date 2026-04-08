@@ -55,7 +55,9 @@ function renderCustomers(items) {
             <td style="padding: 1rem; font-weight: 600;">${c.name}</td>
             <td style="padding: 1rem;">${c.phone}</td>
             <td style="padding: 1rem;" class="text-muted">${c.email || 'N/A'}</td>
-            <td style="padding: 1rem; text-align: right;">${c.purchase_count || 0}</td>
+            <td style="padding: 1rem; text-align: right; font-weight: 700;">${c.total_purchases || 0}</td>
+            <td style="padding: 1rem; text-align: right; font-weight: 600; color: var(--text-muted);">${c.total_items || 0}</td>
+            <td style="padding: 1rem; text-align: right; color: var(--accent-color); font-weight: 600;">₹${parseFloat(c.total_spent || 0).toFixed(2)}</td>
         `;
         tbody.appendChild(tr);
     });

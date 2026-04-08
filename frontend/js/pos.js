@@ -182,6 +182,7 @@ async function processCheckout() {
     }
     
     const customerId = document.getElementById('customerSelect')?.value || null;
+    const paymentMode = document.getElementById('paymentMode').value;
     const subtotal = parseFloat(document.getElementById('subTotal').innerText);
     const gst = parseFloat(document.getElementById('gstAmount').innerText);
     const total = parseFloat(document.getElementById('grandTotal').innerText);
@@ -191,10 +192,12 @@ async function processCheckout() {
     checkoutBtn.innerText = "PROCESSING...";
 
     const user = JSON.parse(localStorage.getItem('user'));
+    
     try {
         const payload = {
             user_id: user ? user.id : null,
             customer_id: customerId,
+            payment_mode: paymentMode,
             subtotal: subtotal,
             gst: gst,
             total: total,
@@ -207,48 +210,51 @@ async function processCheckout() {
 
         const result = await api.post('/sales', payload);
         
-        if (result.status === 'success') {
-            toast.show("Transaction Successful!");
-            showReceipt(result.sale_id, payload);
+        if (result.status === 'success' || result.sale_id) {
+            toast.show("Transaction successful!");
+            showInvoice(result.sale_id || "N/A", payload);
             
-            // CLEAR CART AND REFRESH
+            // Success cleanup
             cart = [];
             updateCartUI();
-            await loadProducts(); // IMPORTANT: Refresh stock levels
+            await loadProducts();
             renderProducts(allProducts);
         } else {
             toast.show(result.message || "Checkout failed", "error");
         }
     } catch (err) {
-        toast.show("Checkout could not be completed", "error");
+        console.error("Checkout error:", err);
+        toast.show("Transaction failed. Check connection.", "error");
     } finally {
         checkoutBtn.disabled = false;
         checkoutBtn.innerText = "COMPLETE TRANSACTION";
     }
 }
 
-function showReceipt(id, payload) {
-    document.getElementById('receiptId').innerText = `#INV-${id}`;
-    document.getElementById('receiptDate').innerText = new Date().toLocaleString();
+function showInvoice(id, payload) {
+    document.getElementById('receiptId').innerText = `#${id}`;
+    document.getElementById('receiptDate').innerText = new Date().toLocaleDateString();
+    document.getElementById('receiptPaymentMode').innerText = payload.payment_mode;
+    
+    const itemsTbody = document.getElementById('receiptItems');
+    itemsTbody.innerHTML = '';
+    
+    payload.items.forEach(item => {
+        const product = allProducts.find(p => p.id == item.product_id);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="padding: 0.5rem; text-align: left;">${product ? product.name : 'Unknown Product'}</td>
+            <td style="padding: 0.5rem; text-align: right;">${item.quantity}</td>
+            <td style="padding: 0.5rem; text-align: right;">₹${item.price}</td>
+            <td style="padding: 0.5rem; text-align: right;">₹${(item.quantity * item.price).toFixed(2)}</td>
+        `;
+        itemsTbody.appendChild(tr);
+    });
+
     document.getElementById('receiptSubtotal').innerText = payload.subtotal.toFixed(2);
     document.getElementById('receiptGst').innerText = payload.gst.toFixed(2);
     document.getElementById('receiptGrandTotal').innerText = payload.total.toFixed(2);
     
-    const receiptItems = document.getElementById('receiptItems');
-    receiptItems.innerHTML = '';
-    
-    payload.items.forEach(item => {
-        const prod = allProducts.find(p => p.id === item.product_id);
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td style="padding: 0.5rem;">${prod ? prod.name : 'Unknown Product'}</td>
-            <td style="padding: 0.5rem; text-align: right;">${item.quantity}</td>
-            <td style="padding: 0.5rem; text-align: right;">₹${item.price}</td>
-            <td style="padding: 0.5rem; text-align: right;">₹${(item.price * item.quantity).toFixed(2)}</td>
-        `;
-        receiptItems.appendChild(tr);
-    });
-
     document.getElementById('invoiceModal').style.display = 'flex';
 }
 

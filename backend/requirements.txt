@@ -7,3 +7,4 @@ flask-jwt-extended
 requests
 psycopg2-binary
 gunicorn
+whitenoise

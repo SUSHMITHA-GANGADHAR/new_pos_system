@@ -3,6 +3,7 @@ let allProducts = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Initial Load
+    loadVendors().catch(err => console.error("Vendors load failed", err));
     loadProducts().catch(err => console.error("Procurement products failed", err));
     loadPurchaseHistory().catch(err => console.error("Purchase history failed", err));
 
@@ -23,6 +24,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (purchaseForm) purchaseForm.addEventListener('submit', handlePurchaseSubmit);
 });
 
+let purchaseHistory = [];
+
 async function loadProducts() {
     try {
         const response = await api.get('/products');
@@ -31,7 +34,10 @@ async function loadProducts() {
         const select = document.getElementById('procureProduct');
         select.innerHTML = '<option value="">Select Product...</option>';
         allProducts.forEach(p => {
-            select.innerHTML += `<option value="${p.id}">${p.name} (SKU: ${p.sku})</option>`;
+            const company = p.categories?.company_name || 'Generic';
+            const rating = p.categories?.rating || 5;
+            const stars = '★'.repeat(rating) + '☆'.repeat(5-rating);
+            select.innerHTML += `<option value="${p.id}">${p.name} - [${company}] (${stars})</option>`;
         });
 
         // Update total stock value
@@ -45,30 +51,76 @@ async function loadProducts() {
 async function loadPurchaseHistory() {
     try {
         const response = await api.get('/purchases');
+        purchaseHistory = response || [];
         const tbody = document.getElementById('purchaseHistoryTable');
         tbody.innerHTML = '';
         
-        if (response && response.length > 0) {
-            response.forEach(p => {
+        if (purchaseHistory.length > 0) {
+            purchaseHistory.forEach(p => {
+                const statusColor = p.status === 'delivered' ? 'var(--accent-color)' : 'orange';
                 const tr = document.createElement('tr');
                 tr.style.borderBottom = '1px solid var(--border-color)';
                 tr.innerHTML = `
                     <td style="padding: 1rem;">${new Date(p.purchase_date).toLocaleDateString()}</td>
                     <td style="padding: 1rem;">${p.supplier_name}</td>
                     <td style="padding: 1rem; font-weight: 700;">₹${parseFloat(p.total_cost).toFixed(2)}</td>
-                    <td style="padding: 1rem;">View Details</td>
+                    <td style="padding: 1rem;">
+                        <span style="color: ${statusColor}; font-weight: 700;">${p.status ? p.status.toUpperCase() : 'DELIVERED'}</span>
+                    </td>
                     <td style="padding: 1rem; text-align: right;">
-                        <button class="btn btn-outline small">View</button>
+                        <button class="btn btn-outline small" onclick="openDetailsModal(${p.id})">
+                            <i class="fas fa-eye"></i> View
+                        </button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
         } else {
-            tbody.innerHTML = '<tr><td colspan="5" style="padding: 2rem; text-align: center; color: var(--text-muted);">No purchase records found.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="padding: 2rem; text-align: center; color: var(--text-muted);">No records found.</td></tr>';
         }
     } catch (err) {
         toast.show("Error loading purchase history", "error");
     }
+}
+
+function openDetailsModal(purchaseId) {
+    const purchase = purchaseHistory.find(p => p.id == purchaseId);
+    if (!purchase) return;
+
+    const content = document.getElementById('detailsContent');
+    const statusText = purchase.status === 'delivered' ? 'Marked as Delivered' : 'Currently Booked';
+    
+    let itemsHTML = '';
+    (purchase.purchase_items || []).forEach(item => {
+        const prodName = item.products?.name || 'Unknown Product';
+        itemsHTML += `
+            <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px dotted var(--border-color);">
+                <span>${prodName} (x${item.quantity})</span>
+                <span>₹${(item.quantity * item.unit_cost).toFixed(2)}</span>
+            </div>
+        `;
+    });
+
+    content.innerHTML = `
+        <div style="padding: 1rem; background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
+            <p><strong>Supplier:</strong> ${purchase.supplier_name}</p>
+            <p><strong>Status:</strong> <span class="text-accent">${statusText}</span></p>
+            <p><strong>Date:</strong> ${new Date(purchase.purchase_date).toLocaleString()}</p>
+        </div>
+        <h4>Items List</h4>
+        <div style="margin-top: 1rem;">
+            ${itemsHTML || '<p class="text-muted">No items list found.</p>'}
+        </div>
+        <div style="margin-top: 1.5rem; text-align: right; border-top: 2px solid var(--border-color); padding-top: 1rem; font-size: 1.25rem;">
+            <strong>GRAND TOTAL: ₹${parseFloat(purchase.total_cost).toFixed(2)}</strong>
+        </div>
+    `;
+
+    document.getElementById('detailsModal').style.display = 'flex';
+}
+
+function closeDetailsModal() {
+    document.getElementById('detailsModal').style.display = 'none';
 }
 
 function addItemToPurchase() {
@@ -141,6 +193,7 @@ async function handlePurchaseSubmit(e) {
     
     const supplier = document.getElementById('supplierName').value;
     const total = parseFloat(document.getElementById('purchaseTotal').innerText);
+    const status = document.getElementById('purchaseStatus').value;
     
     if (!supplier || purchaseItems.length === 0) {
         toast.show("Please add items and supplier", "error");
@@ -151,6 +204,7 @@ async function handlePurchaseSubmit(e) {
         const payload = {
             supplier_name: supplier,
             total_cost: total,
+            status: status,
             items: purchaseItems.map(item => ({
                 product_id: item.id,
                 quantity: item.quantity,
@@ -168,5 +222,57 @@ async function handlePurchaseSubmit(e) {
         }
     } catch (err) {
         toast.show("Could not record purchase", "error");
+    }
+}
+
+async function loadVendors() {
+    try {
+        const categories = await api.get('/categories');
+        const spotlight = document.getElementById('vendorSpotlight');
+        if (!spotlight) return;
+        
+        spotlight.innerHTML = '';
+        
+        if (categories && categories.length > 0) {
+            // Find unique companies
+            const vendors = {};
+            categories.forEach(c => {
+                const name = c.company_name || 'General Supplier';
+                if (!vendors[name]) {
+                    vendors[name] = { 
+                        name: name, 
+                        rating: c.rating || 5,
+                        category: c.name
+                    };
+                }
+            });
+
+            Object.values(vendors).forEach(v => {
+                const stars = '★'.repeat(v.rating) + '☆'.repeat(5 - v.rating);
+                const card = document.createElement('div');
+                card.className = 'stat-card';
+                card.style.minWidth = '200px';
+                card.style.textAlign = 'center';
+                card.style.border = '1px solid rgba(255, 255, 255, 0.1)';
+                card.style.background = 'rgba(255, 255, 255, 0.03)';
+                card.style.transition = 'transform 0.3s ease';
+                card.style.padding = '1.5rem';
+                
+                card.onmouseover = () => card.style.transform = 'translateY(-5px)';
+                card.onmouseout = () => card.style.transform = 'translateY(0)';
+                
+                card.innerHTML = `
+                    <div style="font-size: 2rem; margin-bottom: 1rem;">🏢</div>
+                    <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #fff; border-bottom: 1px solid var(--accent-outer); padding-bottom: 0.5rem;">${v.name}</div>
+                    <div style="color: #ffd700; font-size: 0.9rem; margin-bottom: 0.75rem; letter-spacing: 2px;">${stars}</div>
+                    <div class="text-muted small" style="background: rgba(0,0,0,0.2); padding: 4px 10px; border-radius: 20px; display: inline-block;">${v.category}</div>
+                `;
+                spotlight.appendChild(card);
+            });
+        } else {
+            spotlight.innerHTML = '<div class="text-muted">No vendors found. Add categories to see them here.</div>';
+        }
+    } catch (err) {
+        console.error("Error loading vendors", err);
     }
 }

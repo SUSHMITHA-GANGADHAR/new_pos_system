@@ -86,6 +86,14 @@
                             </div>
                         </div>
 
+                        <div class="mb-4">
+                            <div class="form-label mb-1">Payment Mode</div>
+                            <select id="paymentMode" class="input-control" style="height: 40px; font-size: 0.85rem;">
+                                <option value="cash">Cash Payment</option>
+                                <option value="online">Online / UPI</option>
+                            </select>
+                        </div>
+
                         <button id="checkoutBtn" class="btn btn-primary w-100" style="width: 100%; height: 60px; font-size: 1.25rem; justify-content: center; border-radius: 12px; margin-top: 0.5rem;">
                             COMPLETE TRANSACTION
                         </button>
@@ -111,6 +119,10 @@
                 <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 1rem;">
                     <span>Date: <strong id="receiptDate">01/01/2026</strong></span>
                     <span>INV#: <strong id="receiptId">#0001</strong></span>
+                </div>
+
+                <div style="margin-bottom: 1rem; font-size: 0.9rem; text-align: center; border: 1px solid #000; padding: 2px;">
+                    PAYMENT MODE: <strong id="receiptPaymentMode" style="text-transform: uppercase;">CASH</strong>
                 </div>
 
                 <table style="width: 100%; font-size: 0.85rem; border-collapse: collapse;">
