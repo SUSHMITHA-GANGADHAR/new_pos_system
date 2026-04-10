@@ -4,6 +4,7 @@ os.environ["HTTPX_TIMEOUT"] = "60.0"
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from whitenoise import WhiteNoise
 from supabase import create_client
 from config import Config
 from functools import wraps
@@ -11,17 +12,16 @@ import jwt
 import datetime
 import httpx
 
-# Robust static folder path for deployment
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-FRONTEND_DIR = os.path.join(os.path.dirname(BASE_DIR), 'frontend')
+# Root path for frontend (works locally and on Render)
+root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+frontend_path = os.path.join(root_path, 'frontend')
 
 app = Flask(__name__, 
-            static_folder=FRONTEND_DIR, 
+            static_folder=frontend_path, 
             static_url_path='')
 
-# Use WhiteNoise to serve static files reliably in production (e.g., Render)
-from whitenoise import WhiteNoise
-app.wsgi_app = WhiteNoise(app.wsgi_app, root=FRONTEND_DIR)
+# Wrap Flask with WhiteNoise for efficient asset serving
+app.wsgi_app = WhiteNoise(app.wsgi_app, root=frontend_path, prefix='/')
 
 app.config.from_object(Config)
 CORS(app)
