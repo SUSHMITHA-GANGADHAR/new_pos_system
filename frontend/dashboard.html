@@ -139,30 +139,43 @@
                     </div>
                 </div>
 
-                <!-- Recent Transactions -->
-                <div class="stat-card mt-4" style="margin-top: 1.5rem;">
-                    <h3 class="mb-4" style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem;">Recent
-                        Transactions</h3>
-                    <div class="table-container" style="overflow-x: auto;">
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead>
-                                <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
-                                    <th style="padding: 1rem; color: var(--text-muted);">Date</th>
-                                    <th style="padding: 1rem; color: var(--text-muted);">Invoice ID</th>
-                                    <th style="padding: 1rem; color: var(--text-muted);">Customer</th>
-                                    <th style="padding: 1rem; color: var(--text-muted);">Amount</th>
-                                    <th style="padding: 1rem; color: var(--text-muted);">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="recentTransactions">
-                                <!-- Will be populated by JS -->
-                                <tr style="border-bottom: 1px solid var(--border-color);">
-                                    <td colspan="5"
-                                        style="padding: 2rem; text-align: center; color: var(--text-muted);">Loading
-                                        transactions...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                <!-- Recent Transactions and Staff Performance -->
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-top: 1.5rem;">
+                    <div class="stat-card">
+                        <h3 class="mb-4" style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem;">Recent Transactions</h3>
+                        <div class="table-container" style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
+                                        <th style="padding: 1rem; color: var(--text-muted);">Date</th>
+                                        <th style="padding: 1rem; color: var(--text-muted);">Invoice ID</th>
+                                        <th style="padding: 1rem; color: var(--text-muted);">Customer</th>
+                                        <th style="padding: 1rem; color: var(--text-muted);">Amount</th>
+                                        <th style="padding: 1rem; color: var(--text-muted);">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentTransactions">
+                                    <tr><td colspan="5" style="padding: 2rem; text-align: center; color: var(--text-muted);">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <h3 class="mb-4" style="font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem;">Staff Performance</h3>
+                        <div class="table-container">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
+                                        <th style="padding: 0.75rem; color: var(--text-muted);">Staff</th>
+                                        <th style="padding: 0.75rem; color: var(--text-muted); text-align: right;">Revenue</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="staffPerformanceBody">
+                                    <tr><td colspan="2" style="padding: 1rem; text-align: center; color: var(--text-muted);">Loading rankings...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>

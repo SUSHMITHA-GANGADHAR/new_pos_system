@@ -60,11 +60,15 @@ document.addEventListener('DOMContentLoaded', () => {
 // Auth Guard
 function checkAuth() {
     const token = localStorage.getItem('token');
-    if (!token && !window.location.pathname.endsWith('index.html')) {
+    const path = window.location.pathname;
+    
+    // Whitelist: common root, login page, and registration page
+    const isAuthPage = path.endsWith('index.html') || path.endsWith('register.html') || path === '/';
+    
+    if (!token && !isAuthPage) {
         window.location.href = 'index.html';
     }
 }
 
-if (!window.location.pathname.endsWith('index.html')) {
-    checkAuth();
-}
+// Global execution
+checkAuth();

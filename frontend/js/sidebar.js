@@ -4,11 +4,20 @@ async function injectSidebar() {
     const role = user.role;
     
     // Check access: if staff tries to visit admin pages, redirect
-    const adminPages = ['inventory.html', 'procurement.html', 'sales.html', 'customers.html', 'settings.html', 'dashboard.html'];
-    const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+    // Check access: if staff tries to visit admin pages, redirect
+    const adminPages = ['inventory.html', 'procurement.html', 'sales.html', 'customers.html', 'settings.html', 'dashboard.html', 'inventory', 'procurement', 'sales', 'customers', 'settings', 'dashboard'];
+    const path = window.location.pathname.toLowerCase();
+    const currentPage = path.split('/').pop() || 'index.html';
     
-    if (role === 'staff' && adminPages.includes(currentPage)) {
-        window.location.href = 'staff_dashboard.html'; // Redirect staff to their dashboard
+    // Staff Security
+    if (role === 'staff' && adminPages.some(page => currentPage === page)) {
+        window.location.href = 'staff_dashboard.html';
+        return;
+    }
+
+    // Admin Security: If admin is on staff-only dashboard, keep them but they usually want the main one
+    if (role === 'admin' && currentPage.includes('staff_dashboard')) {
+        window.location.href = 'dashboard.html';
         return;
     }
 

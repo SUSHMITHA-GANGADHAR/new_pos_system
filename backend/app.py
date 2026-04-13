@@ -263,7 +263,12 @@ def get_dashboard_summary():
         
         # 1. Revenue and Orders
         try:
-            sales = supabase.table('sales').select('grand_total').execute()
+            user_id = request.args.get('user_id')
+            query = supabase.table('sales').select('grand_total')
+            if user_id:
+                query = query.eq('user_id', user_id)
+            
+            sales = query.execute()
             data["totalRevenue"] = sum(float(s['grand_total']) for s in (sales.data or []))
             data["totalOrders"] = len(sales.data or [])
         except Exception as e:
@@ -442,9 +447,14 @@ def create_sale():
 
 @app.route('/api/sales/recent', methods=['GET'])
 def get_recent_sales():
+    user_id = request.args.get('user_id')
     try:
         # Join with customers for names
-        res = supabase.from_('sales').select('*, customers(name)').order('sale_date', desc=True).limit(20).execute()
+        query = supabase.from_('sales').select('*, customers(name)')
+        if user_id:
+            query = query.eq('user_id', user_id)
+        
+        res = query.order('sale_date', desc=True).limit(20).execute()
         
         output = []
         for s in (res.data or []):
@@ -456,9 +466,36 @@ def get_recent_sales():
                 "gst_amount": s['gst_amount'],
                 "grand_total": s['grand_total'],
                 "payment_mode": s.get('payment_mode', 'cash'),
-                "customer_name": customer_name
+                "customer_name": customer_name,
+                "user_id": s.get('user_id')
             })
         return jsonify(output)
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+
+@app.route('/api/admin/staff-performance', methods=['GET'])
+def get_staff_performance():
+    try:
+        # 1. Fetch all profiles with 'staff' role
+        staff_res = supabase.table('profiles').select('*').eq('role', 'staff').execute()
+        staff_list = staff_res.data or []
+        
+        # 2. Fetch all sales with grand_total and user_id
+        sales_res = supabase.table('sales').select('grand_total, user_id').execute()
+        all_sales = sales_res.data or []
+        
+        # Aggregation
+        perf = {s['id']: {"name": s['full_name'], "revenue": 0.0, "orders": 0} for s in staff_list}
+        
+        for sale in all_sales:
+            uid = sale.get('user_id')
+            if uid in perf:
+                perf[uid]["revenue"] += float(sale.get('grand_total', 0))
+                perf[uid]["orders"] += 1
+                
+        # Convert to list and sort
+        ranked = sorted(perf.values(), key=lambda x: x['revenue'], reverse=True)
+        return jsonify(ranked)
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
 

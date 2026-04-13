@@ -32,34 +32,50 @@
                     </a>
                 </div>
 
-                <div class="grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div class="grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem;">
                     <div class="stat-card">
-                        <div class="stat-label">Your Daily Sales</div>
+                        <div class="stat-label">Your Total Revenue</div>
                         <div class="stat-value">₹<span id="staffTotal">0.00</span></div>
-                        <div class="text-muted small mt-2">Today's contribution to revenue</div>
+                        <div class="text-muted small mt-2">Personal contribution to sales</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">Invoices Handled</div>
                         <div class="stat-value"><span id="staffInvoices">0</span></div>
-                        <div class="text-muted small mt-2">Transactions completed today</div>
+                        <div class="text-muted small mt-2">Transactions completed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">System Low Stock</div>
+                        <div class="stat-value text-danger"><span id="lowStockCount">0</span></div>
+                        <div class="text-muted small mt-2">Items needing attention</div>
                     </div>
                 </div>
 
-                <div class="stat-card mt-4">
-                    <h3 class="mb-4">Your Recent Transactions</h3>
-                    <div class="table-container">
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead>
-                                <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
-                                    <th style="padding: 1rem; color: var(--text-muted);">Invoice ID</th>
-                                    <th style="padding: 1rem; color: var(--text-muted);">Amount</th>
-                                    <th style="padding: 1rem; color: var(--text-muted);">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="staffTransactions">
-                                <tr><td colspan="3" style="padding: 2rem; text-align: center; color: var(--text-muted);">Loading transactions...</td></tr>
-                            </tbody>
-                        </table>
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-top: 2rem;">
+                    <div class="stat-card">
+                        <h3 class="mb-4">Your Recent Transactions</h3>
+                        <div class="table-container">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid var(--border-color); text-align: left;">
+                                        <th style="padding: 1rem; color: var(--text-muted);">Invoice ID</th>
+                                        <th style="padding: 1rem; color: var(--text-muted);">Amount</th>
+                                        <th style="padding: 1rem; color: var(--text-muted);">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="staffTransactions">
+                                    <tr><td colspan="3" style="padding: 2rem; text-align: center; color: var(--text-muted);">Loading transactions...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <h3 class="mb-4">Inventory Alert</h3>
+                        <div id="lowStockList" style="display: flex; flex-direction: column; gap: 1rem;">
+                            <!-- Low stock items -->
+                            <div class="text-muted small">Loading alerts...</div>
+                        </div>
+                        <a href="inventory.html" class="btn btn-outline" style="margin-top: 1.5rem; width: 100%; justify-content: center;">View All Inventory</a>
                     </div>
                 </div>
             </div>
@@ -71,34 +87,70 @@
     <script src="js/sidebar.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
-            const user = JSON.parse(localStorage.getItem('user'));
-            if (user) {
-                document.getElementById('staffGreeting').innerText = `Hello, ${user.full_name}`;
+            const userString = localStorage.getItem('user');
+            if (!userString) {
+                window.location.href = 'index.html';
+                return;
             }
+            const user = JSON.parse(userString);
+            document.getElementById('staffGreeting').innerText = `Hello, ${user.full_name}`;
 
-            // Load staff specific summary if needed, otherwise use mock
-            const recent = await api.get('/sales/recent');
-            const tbody = document.getElementById('staffTransactions');
-            tbody.innerHTML = '';
-            
-            if (recent && recent.length > 0) {
-                recent.forEach(t => {
-                    const tr = document.createElement('tr');
-                    tr.style.borderBottom = '1px solid var(--border-color)';
-                    tr.innerHTML = `
-                        <td style="padding: 1rem;">#INV-${t.id}</td>
-                        <td style="padding: 1rem;">₹${t.grand_total}</td>
-                        <td style="padding: 1rem;"><span class="text-accent">Success</span></td>
-                    `;
-                    tbody.appendChild(tr);
-                });
+            // 1. Load Personal Stats
+            try {
+                const summary = await api.get(`/dashboard/summary?user_id=${user.id}`);
+                if (summary) {
+                    document.getElementById('staffTotal').innerText = parseFloat(summary.totalRevenue || 0).toLocaleString('en-IN');
+                    document.getElementById('staffInvoices').innerText = summary.totalOrders || 0;
+                    document.getElementById('lowStockCount').innerText = summary.lowStockCount || 0;
+                }
+            } catch (e) { console.error(e); }
+
+            // 2. Load Personal Transactions
+            try {
+                const recent = await api.get(`/sales/recent?user_id=${user.id}`);
+                const tbody = document.getElementById('staffTransactions');
+                tbody.innerHTML = '';
                 
-                // Demo totals
-                document.getElementById('staffTotal').innerText = recent.reduce((s,t) => s + parseFloat(t.grand_total), 0).toFixed(2);
-                document.getElementById('staffInvoices').innerText = recent.length;
-            } else {
-                tbody.innerHTML = '<tr><td colspan="3" style="padding: 2rem; text-align: center; color: var(--text-muted);">No sales yet today.</td></tr>';
-            }
+                if (recent && recent.length > 0) {
+                    recent.forEach(t => {
+                        const tr = document.createElement('tr');
+                        tr.style.borderBottom = '1px solid var(--border-color)';
+                        tr.innerHTML = `
+                            <td style="padding: 1rem; font-weight: 600; color: var(--primary-color);">#INV-${t.id}</td>
+                            <td style="padding: 1rem; font-weight: 700;">₹${parseFloat(t.grand_total).toFixed(2)}</td>
+                            <td style="padding: 1rem;"><span class="text-accent" style="font-size: 0.8rem; font-weight: 700;">● SUCCESS</span></td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="3" style="padding: 2rem; text-align: center; color: var(--text-muted);">No sales yet recently.</td></tr>';
+                }
+            } catch (e) { console.error(e); }
+
+            // 3. Load Low Stock Preview
+            try {
+                const products = await api.get('/products');
+                const lowStockList = document.getElementById('lowStockList');
+                lowStockList.innerHTML = '';
+                
+                const lowItems = (products || []).filter(p => p.stock <= p.low_stock_threshold).slice(0, 5);
+                if (lowItems.length > 0) {
+                    lowItems.forEach(p => {
+                        const div = document.createElement('div');
+                        div.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: rgba(239, 68, 68, 0.1); border-radius: 8px; border-left: 3px solid var(--danger-color);';
+                        div.innerHTML = `
+                            <div>
+                                <div style="font-weight: 600; font-size: 0.9rem;">${p.name}</div>
+                                <div class="text-muted small">Stock: ${p.stock}</div>
+                            </div>
+                            <div class="text-danger" style="font-weight: 700;">LOW</div>
+                        `;
+                        lowStockList.appendChild(div);
+                    });
+                } else {
+                    lowStockList.innerHTML = '<div class="text-accent" style="text-align: center; padding: 1rem;">✅ All items are well stocked</div>';
+                }
+            } catch (e) { console.error(e); }
         });
     </script>
 </body>

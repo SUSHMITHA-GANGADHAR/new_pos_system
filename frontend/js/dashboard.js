@@ -104,4 +104,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (tErr) {
         console.error("Recent transactions failed", tErr);
     }
+
+    // 5. Update Staff Performance
+    try {
+        const rankings = await api.get('/admin/staff-performance');
+        const pBody = document.getElementById('staffPerformanceBody');
+        if (pBody && rankings) {
+            pBody.innerHTML = '';
+            rankings.forEach((s, idx) => {
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid var(--border-color)';
+                const badge = idx === 0 ? '🥇' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : ''));
+                tr.innerHTML = `
+                    <td style="padding: 0.75rem;">
+                        <div style="font-weight: 600;">${badge} ${s.name}</div>
+                        <div class="text-muted small">${s.orders} orders</div>
+                    </td>
+                    <td style="padding: 0.75rem; text-align: right; font-weight: 700; color: var(--accent-color);">
+                        ₹${parseFloat(s.revenue).toLocaleString('en-IN')}
+                    </td>
+                `;
+                pBody.appendChild(tr);
+            });
+        }
+    } catch (err) {
+        console.error("Staff performance load failed", err);
+    }
 });
