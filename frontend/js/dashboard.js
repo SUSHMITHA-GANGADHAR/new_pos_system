@@ -18,17 +18,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // 2. Load Charts (with safety wrap)
+    // 2. Load Charts (with real data)
     try {
-        if (typeof Chart !== 'undefined') {
+        const analytics = await api.get('/dashboard/analytics');
+        if (analytics && typeof Chart !== 'undefined') {
+            // Sales Chart
             const ctxSales = document.getElementById('salesChart').getContext('2d');
             new Chart(ctxSales, {
                 type: 'line',
                 data: {
-                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    labels: analytics.dailySales.labels,
                     datasets: [{
                         label: 'Sales (₹)',
-                        data: [12000, 19000, 15000, 22000, 25000, 20000, 28000],
+                        data: analytics.dailySales.data,
                         borderColor: '#6366f1',
                         backgroundColor: 'rgba(99, 102, 241, 0.1)',
                         borderWidth: 3,
@@ -41,20 +43,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                        y: { 
+                            beginAtZero: true,
+                            grid: { color: '#334155' }, 
+                            ticks: { color: '#94a3b8' } 
+                        },
                         x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
                     }
                 }
             });
 
+            // Category Chart
             const ctxCat = document.getElementById('categoryChart').getContext('2d');
             new Chart(ctxCat, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Electronics', 'Groceries', 'Clothing', 'Others'],
+                    labels: analytics.categorySales.labels,
                     datasets: [{
-                        data: [45, 25, 20, 10],
-                        backgroundColor: ['#6366f1', '#22c55e', '#ef4444', '#f59e0b'],
+                        data: analytics.categorySales.data,
+                        backgroundColor: ['#6366f1', '#22c55e', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899'],
                         borderWidth: 0
                     }]
                 },

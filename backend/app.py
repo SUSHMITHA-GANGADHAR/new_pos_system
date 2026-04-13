@@ -12,16 +12,18 @@ import jwt
 import datetime
 import httpx
 
-# Root path for frontend (works locally and on Render)
-root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-frontend_path = os.path.join(root_path, 'frontend')
+# Get absolute path to the directory containing app.py
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Frontend is in the sibling directory to 'backend'
+frontend_path = os.path.abspath(os.path.join(BASE_DIR, "..", "frontend"))
 
 app = Flask(__name__, 
             static_folder=frontend_path, 
             static_url_path='')
 
-# Wrap Flask with WhiteNoise for efficient asset serving
-app.wsgi_app = WhiteNoise(app.wsgi_app, root=frontend_path, prefix='/')
+# Wrap Flask with WhiteNoise
+# 'index_file=True' allows it to serve index.html for the '/' route automatically
+app.wsgi_app = WhiteNoise(app.wsgi_app, root=frontend_path, prefix='/', index_file=True)
 
 app.config.from_object(Config)
 CORS(app)
@@ -291,6 +293,51 @@ def get_dashboard_summary():
         print(f"Critical Dashboard Error: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route('/api/dashboard/analytics', methods=['GET'])
+def get_dashboard_analytics():
+    try:
+        # 1. Sales by Day (Last 7 Days)
+        # For simplicity, we'll fetch all sales and group in Python or use a clever select
+        sales_res = supabase.table('sales').select('sale_date, grand_total').execute()
+        sales_data = sales_res.data or []
+        
+        # Initialize last 7 days
+        days = []
+        for i in range(6, -1, -1):
+            date = (datetime.datetime.now() - datetime.timedelta(days=i)).strftime('%Y-%m-%d')
+            days.append(date)
+            
+        daily_sales = {day: 0.0 for day in days}
+        for s in sales_data:
+            dt = s['sale_date'].split('T')[0]
+            if dt in daily_sales:
+                daily_sales[dt] += float(s['grand_total'])
+        
+        # 2. Sales by Category
+        # Join sale_items with products and categories
+        items_res = supabase.table('sale_items').select('quantity, unit_price, products(category_id, categories(name))').execute()
+        items_data = items_res.data or []
+        
+        cat_sales = {}
+        for item in items_data:
+            cat_name = item['products']['categories']['name'] if item.get('products') and item['products'].get('categories') else 'Others'
+            amount = float(item['quantity']) * float(item['unit_price'])
+            cat_sales[cat_name] = cat_sales.get(cat_name, 0.0) + amount
+            
+        return jsonify({
+            "dailySales": {
+                "labels": [datetime.datetime.strptime(d, '%Y-%m-%d').strftime('%a') for d in days],
+                "data": [daily_sales[d] for d in days]
+            },
+            "categorySales": {
+                "labels": list(cat_sales.keys()),
+                "data": list(cat_sales.values())
+            }
+        })
+    except Exception as e:
+        print(f"Analytics Error: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 # --- Products CRUD ---
 @app.route('/api/products', methods=['GET'])
 def get_products():
@@ -461,6 +508,26 @@ def create_purchase():
         return jsonify({"status": "success", "purchase_id": purchase_id})
     except Exception as e:
         return jsonify({"status": "error", "message": f"Purchase failed: {str(e)}"}), 400
+
+@app.route('/api/purchases/<int:id>', methods=['PUT', 'DELETE'])
+def update_purchase(id):
+    try:
+        if request.method == 'PUT':
+            data = request.get_json()
+            # Simple update for now (supplier and status)
+            res = supabase.table('purchases').update({
+                "supplier_name": data.get('supplier_name'),
+                "status": data.get('status')
+            }).eq('id', id).execute()
+            return jsonify({"status": "success", "data": res.data})
+        else:
+            # Delete items first then purchase
+            supabase.table('purchase_items').delete().eq('purchase_id', id).execute()
+            res = supabase.table('purchases').delete().eq('id', id).execute()
+            return jsonify({"status": "success", "message": "Purchase deleted"})
+    except Exception as e:
+        print(f"Update/Delete Purchase Error: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 400
 
 # --- Customers ---
 @app.route('/api/customers', methods=['GET'])

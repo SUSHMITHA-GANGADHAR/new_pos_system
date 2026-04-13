@@ -67,9 +67,12 @@ async function loadPurchaseHistory() {
                     <td style="padding: 1rem;">
                         <span style="color: ${statusColor}; font-weight: 700;">${p.status ? p.status.toUpperCase() : 'DELIVERED'}</span>
                     </td>
-                    <td style="padding: 1rem; text-align: right;">
+                    <td style="padding: 1rem; text-align: right; display: flex; gap: 0.5rem; justify-content: flex-end;">
                         <button class="btn btn-outline small" onclick="openDetailsModal(${p.id})">
                             <i class="fas fa-eye"></i> View
+                        </button>
+                        <button class="btn btn-outline small" onclick="handleDeletePurchase(${p.id})">
+                            <i class="fas fa-trash text-danger"></i>
                         </button>
                     </td>
                 `;
@@ -274,5 +277,17 @@ async function loadVendors() {
         }
     } catch (err) {
         console.error("Error loading vendors", err);
+    }
+}
+
+async function handleDeletePurchase(id) {
+    if (confirm("Are you sure you want to delete this purchase record? This won't automatically reverse stock changes.")) {
+        try {
+            await api.delete(`/purchases/${id}`);
+            toast.show("Purchase record deleted");
+            await loadPurchaseHistory();
+        } catch (err) {
+            toast.show("Delete failed", "error");
+        }
     }
 }

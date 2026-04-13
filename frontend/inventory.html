@@ -23,20 +23,20 @@
 
             <div class="content-body">
                 <!-- Filters -->
-                <div class="stat-card mb-4" style="padding: 1.5rem; display: flex; gap: 1.5rem; align-items: flex-end;">
-                    <div class="form-group mb-0" style="flex: 1;">
+                <div class="stat-card mb-4" style="padding: 1.5rem; display: flex; flex-direction: row; gap: 2rem; align-items: flex-end; width: 100%;">
+                    <div class="form-group mb-0" style="flex: 2;">
                         <label class="form-label">Search Products</label>
-                        <input type="text" id="inventorySearch" class="input-control" placeholder="Search by name, SKU...">
+                        <input type="text" id="inventorySearch" class="input-control" placeholder="Search by name, SKU..." style="width: 100%;">
                     </div>
-                    <div class="form-group mb-0" style="width: 200px;">
+                    <div class="form-group mb-0" style="flex: 1;">
                         <label class="form-label">Category</label>
-                        <select id="categoryFilter" class="input-control">
+                        <select id="categoryFilter" class="input-control" style="width: 100%;">
                             <option value="all">All Categories</option>
                         </select>
                     </div>
-                    <div class="form-group mb-0" style="width: 200px;">
+                    <div class="form-group mb-0" style="flex: 1;">
                         <label class="form-label">Stock Status</label>
-                        <select id="stockFilter" class="input-control">
+                        <select id="stockFilter" class="input-control" style="width: 100%;">
                             <option value="all">All Stock</option>
                             <option value="low">Low Stock</option>
                             <option value="out">Out of Stock</option>
