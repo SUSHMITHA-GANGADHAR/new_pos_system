@@ -301,22 +301,19 @@ def get_dashboard_summary():
 @app.route('/api/dashboard/analytics', methods=['GET'])
 def get_dashboard_analytics():
     try:
-        # 1. Sales by Day (Last 7 Days)
-        # For simplicity, we'll fetch all sales and group in Python or use a clever select
+        # 1. Sales by Day (All days that have sales)
         sales_res = supabase.table('sales').select('sale_date, grand_total').execute()
         sales_data = sales_res.data or []
-        
-        # Initialize last 7 days
-        days = []
-        for i in range(6, -1, -1):
-            date = (datetime.datetime.now() - datetime.timedelta(days=i)).strftime('%Y-%m-%d')
-            days.append(date)
-            
-        daily_sales = {day: 0.0 for day in days}
+
+        daily_sales = {}
         for s in sales_data:
             dt = s['sale_date'].split('T')[0]
-            if dt in daily_sales:
-                daily_sales[dt] += float(s['grand_total'])
+            daily_sales[dt] = daily_sales.get(dt, 0.0) + float(s['grand_total'])
+        
+        # Sort days chronologically
+        sorted_days = sorted(daily_sales.keys())
+        
+        # 2. Sales by Category
         
         # 2. Sales by Category
         # Join sale_items with products and categories
@@ -331,8 +328,8 @@ def get_dashboard_analytics():
             
         return jsonify({
             "dailySales": {
-                "labels": [datetime.datetime.strptime(d, '%Y-%m-%d').strftime('%a') for d in days],
-                "data": [daily_sales[d] for d in days]
+                "labels": [datetime.datetime.strptime(d, '%Y-%m-%d').strftime('%b %d') for d in sorted_days],
+                "data": [daily_sales[d] for d in sorted_days]
             },
             "categorySales": {
                 "labels": list(cat_sales.keys()),
@@ -551,11 +548,32 @@ def update_purchase(id):
     try:
         if request.method == 'PUT':
             data = request.get_json()
-            # Simple update for now (supplier and status)
+            new_status = data.get('status')
+            
+            # Fetch old status to check for booked -> delivered transition
+            old_res = supabase.table('purchases').select('status').eq('id', id).execute()
+            old_status = old_res.data[0]['status'] if old_res.data else None
+            
+            # Update purchase
             res = supabase.table('purchases').update({
                 "supplier_name": data.get('supplier_name'),
-                "status": data.get('status')
+                "status": new_status,
+                "total_cost": data.get('total_cost')
             }).eq('id', id).execute()
+            
+            # If transitioning to delivered, increase stock
+            if old_status == 'booked' and new_status == 'delivered':
+                # Get items for this purchase
+                items_res = supabase.table('purchase_items').select('product_id, quantity').eq('purchase_id', id).execute()
+                for item in (items_res.data or []):
+                    p_id = item['product_id']
+                    qty = int(item['quantity'])
+                    
+                    prod = supabase.table('products').select('stock').eq('id', p_id).execute()
+                    if prod.data:
+                        new_stock = int(prod.data[0]['stock']) + qty
+                        supabase.table('products').update({"stock": new_stock}).eq('id', p_id).execute()
+            
             return jsonify({"status": "success", "data": res.data})
         else:
             # Delete items first then purchase

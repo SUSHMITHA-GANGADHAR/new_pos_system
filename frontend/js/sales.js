@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (dateFilter) {
         dateFilter.addEventListener('change', (e) => {
             const selectedDate = e.target.value;
-            const filtered = salesData.filter(s => s.created_at.startsWith(selectedDate));
+            const filtered = salesData.filter(s => s.sale_date && s.sale_date.startsWith(selectedDate));
             renderSales(filtered);
         });
     }
@@ -57,7 +57,7 @@ function renderSales(data) {
         tr.style.borderBottom = '1px solid var(--border-color)';
         tr.innerHTML = `
             <td style="padding: 1rem;">#INV-${s.id}</td>
-            <td style="padding: 1rem;">${new Date(s.created_at).toLocaleDateString()}</td>
+            <td style="padding: 1rem;">${new Date(s.sale_date).toLocaleDateString()}</td>
             <td style="padding: 1rem;">${s.customer_name || 'Walking Customer'}</td>
             <td style="padding: 1rem;">₹${parseFloat(s.total_amount).toFixed(2)}</td>
             <td style="padding: 1rem;">₹${parseFloat(s.gst_amount).toFixed(2)}</td>

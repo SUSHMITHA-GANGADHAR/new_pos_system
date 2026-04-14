@@ -1,5 +1,6 @@
 let purchaseItems = [];
 let allProducts = [];
+let editingPurchaseId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Initial Load
@@ -11,7 +12,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const newBtn = document.getElementById('newPurchaseBtn');
     if (newBtn) {
         newBtn.addEventListener('click', () => {
+            editingPurchaseId = null;
             purchaseItems = [];
+            document.getElementById('purchaseForm').reset();
+            document.getElementById('purchaseModalTitle').innerText = 'New Stock Entry';
+            document.getElementById('purchaseSubmitBtn').innerText = 'Confirm Purchase';
             updatePurchaseListUI();
             document.getElementById('purchaseModal').style.display = 'flex';
         });
@@ -71,6 +76,9 @@ async function loadPurchaseHistory() {
                         <button class="btn btn-outline small" onclick="openDetailsModal(${p.id})">
                             <i class="fas fa-eye"></i> View
                         </button>
+                        <button class="btn btn-outline small" onclick="openEditPurchaseModal(${p.id})">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
                         <button class="btn btn-outline small" onclick="handleDeletePurchase(${p.id})">
                             <i class="fas fa-trash text-danger"></i>
                         </button>
@@ -84,6 +92,9 @@ async function loadPurchaseHistory() {
     } catch (err) {
         toast.show("Error loading purchase history", "error");
     }
+}
+
+    document.getElementById('detailsModal').style.display = 'flex';
 }
 
 function openDetailsModal(purchaseId) {
@@ -120,6 +131,29 @@ function openDetailsModal(purchaseId) {
     `;
 
     document.getElementById('detailsModal').style.display = 'flex';
+}
+
+function openEditPurchaseModal(id) {
+    const p = purchaseHistory.find(item => item.id == id);
+    if (!p) return;
+
+    editingPurchaseId = id;
+    document.getElementById('purchaseModalTitle').innerText = 'Edit Purchase Record';
+    document.getElementById('purchaseSubmitBtn').innerText = 'Update Purchase';
+    
+    document.getElementById('supplierName').value = p.supplier_name;
+    document.getElementById('purchaseStatus').value = p.status || 'delivered';
+    
+    // Convert items
+    purchaseItems = (p.purchase_items || []).map(item => ({
+        id: item.product_id,
+        name: item.products?.name || 'Unknown',
+        quantity: item.quantity,
+        cost: item.unit_cost
+    }));
+
+    updatePurchaseListUI();
+    document.getElementById('purchaseModal').style.display = 'flex';
 }
 
 function closeDetailsModal() {
@@ -215,16 +249,21 @@ async function handlePurchaseSubmit(e) {
             }))
         };
         
-        const result = await api.post('/purchases', payload);
+        let result;
+        if (editingPurchaseId) {
+            result = await api.put(`/purchases/${editingPurchaseId}`, payload);
+        } else {
+            result = await api.post('/purchases', payload);
+        }
         
         if (result.status === 'success') {
-            toast.show("Stock inward recorded successfully");
+            toast.show(editingPurchaseId ? "Purchase record updated" : "Stock inward recorded successfully");
             closePurchaseModal();
             await loadProducts();
             await loadPurchaseHistory();
         }
     } catch (err) {
-        toast.show("Could not record purchase", "error");
+        toast.show("Operation failed", "error");
     }
 }
 

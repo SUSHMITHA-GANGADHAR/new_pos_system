@@ -69,7 +69,7 @@
     <!-- Purchase Modal -->
     <div id="purchaseModal" class="modal-overlay">
         <div class="modal-content" style="max-width: 600px;">
-            <h2 class="mb-4">New Stock Entry</h2>
+            <h2 id="purchaseModalTitle" class="mb-4">New Stock Entry</h2>
             <form id="purchaseForm">
                 <div class="form-group mb-4">
                     <label class="form-label">Supplier Name</label>
@@ -106,7 +106,7 @@
                 </div>
 
                 <div style="display: flex; gap: 1rem; margin-top: 2rem;">
-                    <button type="submit" class="btn btn-primary" style="flex: 1; justify-content: center;">Confirm Purchase</button>
+                    <button type="submit" id="purchaseSubmitBtn" class="btn btn-primary" style="flex: 1; justify-content: center;">Confirm Purchase</button>
                     <button type="button" class="btn btn-outline" style="flex: 1; justify-content: center;" onclick="closePurchaseModal()">Cancel</button>
                 </div>
             </form>

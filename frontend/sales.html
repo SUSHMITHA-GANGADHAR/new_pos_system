@@ -16,15 +16,18 @@
                 <div class="page-title">Sales History & Reports</div>
             </header>
 
-            <div class="content-body">
-                <div class="stat-card mb-4" style="padding: 1.5rem; display: flex; gap: 1.5rem; align-items: flex-end;">
-                    <div class="form-group mb-0" style="flex: 1;">
-                        <label class="form-label">Search Invoice</label>
-                        <input type="text" id="salesSearch" class="input-control" placeholder="Search by ID or customer name...">
+            <div class="content-body" style="padding-top: 0.5rem;">
+                <div class="stat-card mb-4" style="padding: 1rem 1.5rem; display: flex; gap: 1.5rem; align-items: center; background: rgba(15, 23, 42, 0.4);">
+                    <div style="flex: 1; display: flex; gap: 1rem; align-items: center;">
+                        <div class="form-group mb-0" style="flex: 2;">
+                            <input type="text" id="salesSearch" class="input-control" placeholder="Search Invoice ID or Customer...">
+                        </div>
+                        <div class="form-group mb-0" style="flex: 1; min-width: 180px;">
+                            <input type="date" id="dateFilter" class="input-control">
+                        </div>
                     </div>
-                    <div class="form-group mb-0" style="width: 200px;">
-                        <label class="form-label">Date Filter</label>
-                        <input type="date" id="dateFilter" class="input-control">
+                    <div class="text-muted small" style="white-space: nowrap;">
+                        <i class="fas fa-filter"></i> Filters Active
                     </div>
                 </div>
 
