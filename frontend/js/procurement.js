@@ -94,9 +94,6 @@ async function loadPurchaseHistory() {
     }
 }
 
-    document.getElementById('detailsModal').style.display = 'flex';
-}
-
 function openDetailsModal(purchaseId) {
     const purchase = purchaseHistory.find(p => p.id == purchaseId);
     if (!purchase) return;
@@ -292,22 +289,12 @@ async function loadVendors() {
             Object.values(vendors).forEach(v => {
                 const stars = '★'.repeat(v.rating) + '☆'.repeat(5 - v.rating);
                 const card = document.createElement('div');
-                card.className = 'stat-card';
-                card.style.minWidth = '200px';
-                card.style.textAlign = 'center';
-                card.style.border = '1px solid rgba(255, 255, 255, 0.1)';
-                card.style.background = 'rgba(255, 255, 255, 0.03)';
-                card.style.transition = 'transform 0.3s ease';
-                card.style.padding = '1.5rem';
-                
-                card.onmouseover = () => card.style.transform = 'translateY(-5px)';
-                card.onmouseout = () => card.style.transform = 'translateY(0)';
-                
+                card.className = 'vendor-item'; // Use a new class for better styling
                 card.innerHTML = `
-                    <div style="font-size: 2rem; margin-bottom: 1rem;">🏢</div>
-                    <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #fff; border-bottom: 1px solid var(--accent-outer); padding-bottom: 0.5rem;">${v.name}</div>
-                    <div style="color: #ffd700; font-size: 0.9rem; margin-bottom: 0.75rem; letter-spacing: 2px;">${stars}</div>
-                    <div class="text-muted small" style="background: rgba(0,0,0,0.2); padding: 4px 10px; border-radius: 20px; display: inline-block;">${v.category}</div>
+                    <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">🏢</div>
+                    <div style="font-weight: 700; color: #fff; margin-bottom: 0.25rem;">${v.name}</div>
+                    <div style="color: #ffd700; font-size: 0.75rem; margin-bottom: 0.5rem;">${stars}</div>
+                    <div class="text-muted small">${v.category}</div>
                 `;
                 spotlight.appendChild(card);
             });

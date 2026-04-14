@@ -44,9 +44,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     plugins: { legend: { display: false } },
                     scales: {
                         y: { 
-                            beginAtZero: true,
+                            min: 1000,
                             grid: { color: '#334155' }, 
-                            ticks: { color: '#94a3b8' } 
+                            ticks: { 
+                                color: '#94a3b8',
+                                callback: function(value) { return '₹' + value; }
+                            } 
                         },
                         x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
                     }

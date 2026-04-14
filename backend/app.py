@@ -316,13 +316,16 @@ def get_dashboard_analytics():
         # 2. Sales by Category
         
         # 2. Sales by Category
-        # Join sale_items with products and categories
-        items_res = supabase.table('sale_items').select('quantity, unit_price, products(category_id, categories(name))').execute()
+        items_res = supabase.table('sale_items').select('quantity, unit_price, product_id').execute()
         items_data = items_res.data or []
+        
+        # We need product details to get categories
+        products_res = supabase.table('products').select('id, category_id, categories(name)').execute()
+        products_map = {p['id']: p['categories']['name'] if p.get('categories') else 'Others' for p in (products_res.data or [])}
         
         cat_sales = {}
         for item in items_data:
-            cat_name = item['products']['categories']['name'] if item.get('products') and item['products'].get('categories') else 'Others'
+            cat_name = products_map.get(item['product_id'], 'Others')
             amount = float(item['quantity']) * float(item['unit_price'])
             cat_sales[cat_name] = cat_sales.get(cat_name, 0.0) + amount
             

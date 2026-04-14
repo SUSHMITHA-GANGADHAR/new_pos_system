@@ -288,6 +288,26 @@ button {
 .text-accent { color: var(--accent-color); }
 .text-danger { color: var(--danger-color); }
 
+.vendor-item {
+    min-width: 180px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 1.25rem;
+    text-align: center;
+    transition: var(--transition);
+}
+
+.vendor-item:hover {
+    transform: translateY(-5px);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.text-accent-outer {
+    color: var(--primary-color);
+    text-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+}
+
 @media (max-width: 768px) {
     .sidebar { width: 0; overflow: hidden; }
     .main-content { margin-left: 0; }
